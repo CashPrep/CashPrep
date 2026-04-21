@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>College Money Map · CashPrep</title>
+  <meta name="description" content="CashPrep: estimate yearly college spending money by state, with meal plan and lifestyle inputs, excluding tuition." />
+  <script src="vendor/tailwindcss-3.4.17.js"></script>
+  <script src="vendor/chart_1.js"></script>
+
+  <!-- Google AdSense -->
+  
+
+  <style>
+    :root{--bg1:#0f172a;--bg2:#111827;--accent:#7c3aed;--accent2:#06b6d4;}
+    body{background:linear-gradient(135deg,var(--bg1),var(--bg2));}
+    .glass{background:rgba(255,255,255,.08);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.12)}
+    .chip{transition:.2s;}
+    .chip.active{transform:translateY(-1px);box-shadow:0 10px 25px rgba(0,0,0,.25)}
+    details summary::-webkit-details-marker{display:none;}
+    details summary::marker{display:none;}
+    .suggestion-item:hover{background-color:rgba(255,255,255,0.12);}
+  </style>
+</head>
+<body class="min-h-screen text-white">
+  <div id="app" class="max-w-6xl mx-auto p-4 md:p-8 space-y-8">
+    <!-- Header + State search -->
+    <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+      <div>
+        <p class="uppercase tracking-[.35em] text-cyan-300 text-xs">CashPrep · College budget estimator</p>
+        <h1 class="text-3xl md:text-5xl font-black mt-2">College Money Map</h1>
+        <p class="text-slate-300 mt-2 max-w-2xl">
+          Estimate how much spending money to save for a year of college, excluding tuition, using state, meal-plan, and lifestyle inputs.
+        </p>
+      </div>
+      <div class="glass rounded-2xl p-4 w-full md:w-80 relative">
+        <label class="text-sm text-slate-300">Search state</label>
+        <input
+          id="stateSearch"
+          class="mt-2 w-full rounded-xl bg-slate-950/60 border border-white/10 px-4 py-3 outline-none"
+          placeholder="Start typing your state"
+          autocomplete="off"
+        />
+        <div
+          id="stateSuggestions"
+          class="absolute left-4 right-4 mt-1 max-h-56 overflow-auto space-y-1 bg-slate-950/95 border border-white/10 rounded-2xl z-20 hidden"
+        ></div>
+      </div>
+    </div>
+
+    <!-- Main layout -->
+    <div class="grid lg:grid-cols-3 gap-6">
+      <div class="lg:col-span-2 space-y-6">
+        <!-- Step 1 -->
+        <div class="glass rounded-3xl p-5 md:p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-xl font-bold">1. Pick your state</h2>
+            <span id="themeBadge" class="text-xs px-3 py-1 rounded-full bg-white/10">Default theme</span>
+          </div>
+          <div class="grid md:grid-cols-2 gap-4">
+            <div>
+              <label class="text-sm text-slate-300">Selected state</label>
+              <div
+                id="selectedState"
+                class="mt-2 rounded-2xl border border-white/10 p-4 bg-slate-950/40"
+              >
+                None selected
+              </div>
+            </div>
+            <div>
+              <label class="text-sm text-slate-300">State (quick select)</label>
+              <select
+                id="stateSelect"
+                class="mt-2 w-full rounded-xl bg-slate-950/60 border border-white/10 px-4 py-3"
+              ></select>
+              <p class="text-xs text-slate-400 mt-2">
+                You can also choose your state here instead of typing above.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="glass rounded-3xl p-5 md:p-6">
+          <h2 class="text-xl font-bold mb-4">2. Meal setup</h2>
+          <div class="flex flex-wrap gap-3 mb-3">
+            <button class="chip px-4 py-2 rounded-full bg-white/10" data-meal="plan">Meal plan</button>
+            <button class="chip px-4 py-2 rounded-full bg-white/10" data-meal="no_plan">No meal plan</button>
+          </div>
+          <p id="mealNote" class="text-sm text-slate-300"></p>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="glass rounded-3xl p-5 md:p-6">
+          <h2 class="text-xl font-bold mb-4">3. What matters most?</h2>
+          <p class="text-sm text-slate-300 mb-3">
+            Drag each slider from 1 (low) to 4 (high) based on how important that category is to you this year.
+          </p>
+          <div id="weights" class="grid md:grid-cols-2 gap-4"></div>
+        </div>
+      </div>
+
+      <!-- Right column: estimate + info -->
+      <div class="space-y-6">
+        <div class="glass rounded-3xl p-5 md:p-6">
+          <h2 class="text-xl font-bold mb-4">Estimate</h2>
+          <div class="text-5xl font-black" id="estimate">$0</div>
+          <p class="text-slate-300 mt-2">
+            Suggested yearly spending money, excluding tuition.
+          </p>
+          <canvas id="chart" class="mt-4"></canvas>
+        </div>
+
+        <div class="glass rounded-3xl p-5 md:p-6 text-sm text-slate-300 space-y-2">
+          <h3 class="font-bold text-white mb-1">What is included</h3>
+          <ul class="space-y-2 list-disc pl-5">
+            <li>Food, groceries, takeout, bars, parties, local transport, and personal spending.</li>
+            <li>Meal-plan and off-campus assumptions are separated so no-meal-plan students can still be modeled.</li>
+            <li>Estimates are based on state-level living-cost baselines plus your lifestyle sliders.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- About, Privacy, Contact -->
+    <div class="grid md:grid-cols-3 gap-4">
+      <div class="glass rounded-3xl p-5 md:p-6 text-sm text-slate-200 space-y-3">
+        <h2 class="font-bold text-white text-lg">About CashPrep estimates</h2>
+        <p>
+          CashPrep is a simple planning tool that focuses on the living‑expense part of college costs
+          and intentionally leaves tuition out. It helps you think about how much spending money you
+          may want to save for one academic year.
+        </p>
+        <p>
+          The estimates draw on the same ideas colleges and the U.S. Department of Education use
+          when they build a student’s “cost of attendance,” which combines housing, food, transport,
+          and personal costs alongside tuition and fees.[web:28][web:31]
+        </p>
+        <p>
+          For this demo, the state baselines are set using representative ranges for room,
+          board, transportation, and personal expenses reported in public cost-of-attendance and
+          affordability research, not the official numbers for any school.[web:30][web:37]
+        </p>
+        <p>
+          Sliders for spending, takeout, bars, and partying adjust the baseline up or down to reflect
+          different lifestyles. The result is an approximate yearly spending‑money target, not a
+          guarantee of your actual costs.[web:27][web:29]
+        </p>
+      </div>
+
+      <div class="glass rounded-3xl p-5 md:p-6 text-sm text-slate-200 space-y-3">
+        <h2 class="font-bold text-white text-lg">Privacy policy</h2>
+        <p>
+          This CashPrep calculator runs as a static web page and is not built to collect personal
+          information such as your name, address, or payment details. The numbers you type and the
+          sliders you use are processed only in your browser to show you an estimate.[web:32][web:38]
+        </p>
+        <p>
+          No account system, user login, or direct payment processing is built into this page. As long
+          as it is hosted on a static platform without extra analytics or tracking scripts, the site
+          itself does not store or sell your personal data.[web:32][web:38]
+        </p>
+        <p>
+          Third‑party services used with this site, such as the hosting provider or ad networks like
+          Google AdSense, may still collect technical information (for example IP address, device
+          type, or general location) to operate and secure their platforms.[web:32][web:35]
+        </p>
+        <p>
+          Your use of this page is also subject to the privacy and
